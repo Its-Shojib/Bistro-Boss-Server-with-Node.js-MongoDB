@@ -30,6 +30,10 @@ async function run() {
         let result = await menuCollections.find().toArray();
         res.send(result);
     })
+    app.get('/review', async(req,res)=>{
+        let result = await reviewCollections.find().toArray();
+        res.send(result);
+    })
 
 
 
