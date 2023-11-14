@@ -5,7 +5,10 @@ const port = process.env.PORT || 5000
 require('dotenv').config()
 let cors = require('cors')
 
-app.use(cors())
+app.use(cors({
+  origin: 'http://localhost:5173',
+  credentials: true
+}))
 app.use(express.json())
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.oglq0ui.mongodb.net/?retryWrites=true&w=majority`;
@@ -23,18 +26,32 @@ async function run() {
   try {
     const menuCollections = client.db("Bistro-Boss-Restaurant").collection('Menu');
     const reviewCollections = client.db("Bistro-Boss-Restaurant").collection('Reviews');
+    const cartCollections = client.db("Bistro-Boss-Restaurant").collection('Carts');
 
 
-
-    app.get('/menu', async(req,res)=>{
-        let result = await menuCollections.find().toArray();
-        res.send(result);
+    /*Food item */
+    app.get('/menu', async (req, res) => {
+      let result = await menuCollections.find().toArray();
+      res.send(result);
     })
-    app.get('/review', async(req,res)=>{
-        let result = await reviewCollections.find().toArray();
-        res.send(result);
+    app.get('/review', async (req, res) => {
+      let result = await reviewCollections.find().toArray();
+      res.send(result);
     })
 
+    /*Cart section*/
+    app.post('/carts', async (req, res) => {
+      let newFood = req.body;
+      let result = await cartCollections.insertOne(newFood);
+      res.send(result);
+    });
+
+    app.get('/carts', async(req,res)=>{
+      let email = req.query.email;
+      let query = {email : email};
+      let result = await cartCollections.find(query).toArray();
+      res.send(result);
+    })
 
 
 
