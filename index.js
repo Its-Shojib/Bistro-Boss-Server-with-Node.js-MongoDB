@@ -27,6 +27,33 @@ async function run() {
     const menuCollections = client.db("Bistro-Boss-Restaurant").collection('Menu');
     const reviewCollections = client.db("Bistro-Boss-Restaurant").collection('Reviews');
     const cartCollections = client.db("Bistro-Boss-Restaurant").collection('Carts');
+    const userCollections = client.db("Bistro-Boss-Restaurant").collection('Users');
+
+
+    // User Related API
+    app.get('/users', async (req, res) => {
+      let result = await userCollections.find().toArray();
+      res.send(result)
+    })
+
+    app.post('/users', async (req, res) => {
+      let newUser = req.body;
+      let query = { email: newUser.email };
+      let existingUser = await userCollections.findOne(query);
+      if (existingUser) {
+        return res.send({ message: 'User already exist', insertedId: null });
+      }
+      let result = await userCollections.insertOne(newUser);
+      res.send(result)
+    })
+
+    app.delete('/users/:id',async(req,res)=>{
+      let id = req.params.id;
+      let query = {_id : new ObjectId(id)};
+      let result = await userCollections.deleteOne(query);
+      res.send(result)
+    })
+
 
 
     /*Food item */
@@ -46,15 +73,15 @@ async function run() {
       res.send(result);
     });
 
-    app.get('/carts', async(req,res)=>{
+    app.get('/carts', async (req, res) => {
       let email = req.query.email;
-      let query = {email : email};
+      let query = { email: email };
       let result = await cartCollections.find(query).toArray();
       res.send(result);
     })
-    app.delete('/carts/:id',async(req,res)=>{
-      let id=req.params.id;
-      let query = {_id : new ObjectId(id)};
+    app.delete('/carts/:id', async (req, res) => {
+      let id = req.params.id;
+      let query = { _id: new ObjectId(id) };
       let result = await cartCollections.deleteOne(query);
       res.send(result);
     })
