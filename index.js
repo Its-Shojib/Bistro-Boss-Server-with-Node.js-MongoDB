@@ -131,8 +131,8 @@ async function run() {
 
     app.get('/menu/:id', async (req, res) => {
       let id = req.params.id;
-      console.log('menu: ', id);
-      let query = { _id: id};
+
+      let query = { _id: new ObjectId(id) };
       let result = await menuCollections.findOne(query)
       res.send(result);
     })
@@ -145,13 +145,29 @@ async function run() {
 
     app.delete('/menu/:id', verifyToken, verifyAdmin, async (req, res) => {
       let id = req.params.id;
-      console.log("Item is: ", id);
       let query = { _id: new ObjectId(id) };
-      
+
       let result = await menuCollections.deleteOne(query);
-      if(!result.deletedCount){
-        result = await menuCollections.deleteOne({_id:id});
+      if (!result.deletedCount) {
+        result = await menuCollections.deleteOne({ _id: id });
       }
+      res.send(result);
+    })
+
+    app.patch('/menu/:id', async (req, res) => {
+      const item = req.body;
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) }
+      const updatedDoc = {
+        $set: {
+          name: item.name,
+          category: item.category,
+          price: item.price,
+          recipe: item.recipe,
+          image: item.image
+        }
+      }
+      const result = await menuCollections.updateOne(filter, updatedDoc)
       res.send(result);
     })
 
