@@ -11,8 +11,8 @@ let jwt = require('jsonwebtoken');
 app.use(cors({
   origin: [
     'http://localhost:5173',
-    'bistro-boss-restaurants-44ed2.web.app',
-    'bistro-boss-restaurants-44ed2.firebaseapp.com'
+    'https://bistro-boss-restaurants-44ed2.firebaseapp.com',
+    'https://bistro-boss-restaurants-44ed2.web.app'
   ],
   credentials: true
 }))
