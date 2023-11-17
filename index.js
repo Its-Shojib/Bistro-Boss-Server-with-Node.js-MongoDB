@@ -73,7 +73,7 @@ async function run() {
     })
 
     // User Related API
-    app.get('/users', verifyToken,verifyAdmin, async (req, res) => {
+    app.get('/users', verifyToken, verifyAdmin, async (req, res) => {
       let result = await userCollections.find().toArray();
       res.send(result)
     })
@@ -89,13 +89,13 @@ async function run() {
       res.send(result)
     })
 
-    app.delete('/users/:id',verifyToken,verifyAdmin, async (req, res) => {
+    app.delete('/users/:id', verifyToken, verifyAdmin, async (req, res) => {
       let id = req.params.id;
       let query = { _id: new ObjectId(id) };
       let result = await userCollections.deleteOne(query);
       res.send(result)
     })
-    app.patch('/users/admin/:id',verifyToken,verifyAdmin, async (req, res) => {
+    app.patch('/users/admin/:id', verifyToken, verifyAdmin, async (req, res) => {
       let id = req.params.id;
       let query = { _id: new ObjectId(id) };
       let updatedDoc = {
@@ -123,11 +123,39 @@ async function run() {
 
 
 
-    /*Food item */
+    /*Menu Food item */
     app.get('/menu', async (req, res) => {
       let result = await menuCollections.find().toArray();
       res.send(result);
     })
+
+    app.get('/menu/:id', async (req, res) => {
+      let id = req.params.id;
+      console.log('menu: ', id);
+      let query = { _id: id};
+      let result = await menuCollections.findOne(query)
+      res.send(result);
+    })
+
+    app.post('/menu', verifyToken, verifyAdmin, async (req, res) => {
+      let menuItem = req.body;
+      let result = await menuCollections.insertOne(menuItem);
+      res.send(result);
+    })
+
+    app.delete('/menu/:id', verifyToken, verifyAdmin, async (req, res) => {
+      let id = req.params.id;
+      console.log("Item is: ", id);
+      let query = { _id: new ObjectId(id) };
+      
+      let result = await menuCollections.deleteOne(query);
+      if(!result.deletedCount){
+        result = await menuCollections.deleteOne({_id:id});
+      }
+      res.send(result);
+    })
+
+
     app.get('/review', async (req, res) => {
       let result = await reviewCollections.find().toArray();
       res.send(result);
