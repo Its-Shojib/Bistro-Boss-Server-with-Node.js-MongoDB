@@ -6,7 +6,7 @@ require('dotenv').config()
 let cors = require('cors')
 let cookieParser = require('cookie-parser')
 let jwt = require('jsonwebtoken');
-
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
 app.use(cors({
   origin: [
@@ -37,6 +37,7 @@ async function run() {
     const reviewCollections = client.db("Bistro-Boss-Restaurant").collection('Reviews');
     const cartCollections = client.db("Bistro-Boss-Restaurant").collection('Carts');
     const userCollections = client.db("Bistro-Boss-Restaurant").collection('Users');
+    const paymentCollections = client.db("Bistro-Boss-Restaurant").collection('Payments');
 
 
 
@@ -202,6 +203,45 @@ async function run() {
     })
 
 
+    //Payment related Api
+    app.post("/create-payment-intent", async (req, res) => {
+      const { price } = req.body;
+      let amount = parseInt(price * 100);
+
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: "usd",
+        payment_method_types: ['card']
+      });
+      res.send({
+        clientSecret: paymentIntent.client_secret,
+      });
+    });
+
+    app.get('/payments/:email', verifyToken, async (req, res) => {
+      let email = req.params.email;
+      let query = { email: email };
+
+      if (req.params.email !== req.decoded.email) {
+        return res.status(403).send({ message: 'forbidded access' })
+      }
+      let result = await paymentCollections.find(query).toArray();
+      res.send(result);
+    })
+
+    app.post('/payment', async (req, res) => {
+      let payment = req.body;
+      let paymentResult = await paymentCollections.insertOne(payment);
+
+      let query = {
+        _id: {
+          $in: payment.cartIds.map(id => new ObjectId(id))
+        }
+      }
+      let deleteResult = await cartCollections.deleteMany(query);
+
+      res.send({ paymentResult, deleteResult });
+    })
 
 
 
