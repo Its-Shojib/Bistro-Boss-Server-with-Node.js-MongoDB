@@ -83,6 +83,7 @@ async function run() {
       res.send(result)
     })
 
+    //for google sign-in
     app.post('/users', async (req, res) => {
       let newUser = req.body;
       let query = { email: newUser.email };
@@ -94,12 +95,14 @@ async function run() {
       res.send(result)
     })
 
+    //delete an user
     app.delete('/users/:id', verifyToken, verifyAdmin, async (req, res) => {
       let id = req.params.id;
       let query = { _id: new ObjectId(id) };
       let result = await userCollections.deleteOne(query);
       res.send(result)
     })
+    //update the user role
     app.patch('/users/admin/:id', verifyToken, verifyAdmin, async (req, res) => {
       let id = req.params.id;
       let query = { _id: new ObjectId(id) };
@@ -112,6 +115,7 @@ async function run() {
       res.send(result)
     })
 
+    //check admin or not
     app.get('/users/admin/:email', verifyToken, async (req, res) => {
       let userEmail = req.params.email;
       if (userEmail !== req.decoded.email) {
@@ -134,20 +138,22 @@ async function run() {
       res.send(result);
     })
 
+    //find one menu item
     app.get('/menu/:id', async (req, res) => {
       let id = req.params.id;
-
       let query = { _id: new ObjectId(id) };
       let result = await menuCollections.findOne(query)
       res.send(result);
     })
 
+    //add a menu item
     app.post('/menu', verifyToken, verifyAdmin, async (req, res) => {
       let menuItem = req.body;
       let result = await menuCollections.insertOne(menuItem);
       res.send(result);
     })
 
+    //delete a menu item
     app.delete('/menu/:id', verifyToken, verifyAdmin, async (req, res) => {
       let id = req.params.id;
       let query = { _id: new ObjectId(id) };
@@ -159,6 +165,7 @@ async function run() {
       res.send(result);
     })
 
+    //update a menu item
     app.patch('/menu/:id', async (req, res) => {
       const item = req.body;
       const id = req.params.id;
@@ -177,24 +184,29 @@ async function run() {
     })
 
 
+    //user review
     app.get('/review', async (req, res) => {
       let result = await reviewCollections.find().toArray();
       res.send(result);
     })
 
     /*Cart section*/
+    //add to cart
     app.post('/carts', async (req, res) => {
       let newFood = req.body;
       let result = await cartCollections.insertOne(newFood);
       res.send(result);
     });
 
+    //load the cart item
     app.get('/carts', async (req, res) => {
       let email = req.query.email;
       let query = { email: email };
       let result = await cartCollections.find(query).toArray();
       res.send(result);
     })
+    
+    //delete one cart item
     app.delete('/carts/:id', async (req, res) => {
       let id = req.params.id;
       let query = { _id: new ObjectId(id) };
@@ -204,6 +216,7 @@ async function run() {
 
 
     //Payment related Api
+    //create payment intent
     app.post("/create-payment-intent", async (req, res) => {
       const { price } = req.body;
       let amount = parseInt(price * 100);
@@ -218,6 +231,7 @@ async function run() {
       });
     });
 
+    //load data for payment history
     app.get('/payments/:email', verifyToken, async (req, res) => {
       let email = req.params.email;
       let query = { email: email };
@@ -229,6 +243,8 @@ async function run() {
       res.send(result);
     })
 
+    //post payment data into database
+    //delete item from cart collection
     app.post('/payment', async (req, res) => {
       let payment = req.body;
       let paymentResult = await paymentCollections.insertOne(payment);
