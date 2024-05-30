@@ -38,6 +38,7 @@ async function run() {
     const cartCollections = client.db("Bistro-Boss-Restaurant").collection('Carts');
     const userCollections = client.db("Bistro-Boss-Restaurant").collection('Users');
     const paymentCollections = client.db("Bistro-Boss-Restaurant").collection('Payments');
+    const offerCollections = client.db("Bistro-Boss-Restaurant").collection('Offers');
 
 
 
@@ -203,7 +204,7 @@ async function run() {
       let result = await cartCollections.find(query).toArray();
       res.send(result);
     })
-    
+
     //delete one cart item
     app.delete('/carts/:id', async (req, res) => {
       let id = req.params.id;
@@ -291,7 +292,7 @@ async function run() {
     })
 
     //Order-stats
-    app.get('/order-stats',verifyToken,verifyAdmin, async (req, res) => {
+    app.get('/order-stats', verifyToken, verifyAdmin, async (req, res) => {
       const result = await paymentCollections.aggregate([
         {
           $unwind: '$menuItemIds'
@@ -326,8 +327,51 @@ async function run() {
 
       res.send(result);
 
-    })
+    });
 
+
+    app.put('/add-offer', async (req, res) => {
+      let offer = req.body;
+      let count = 0;
+      let options = { upsert: true };
+      if (offer.globalOffer == 'all') {
+        updatedDoc = {
+          $set: {
+            offer: offer.buyAmount,
+            offerType: offer.offerType,
+          }
+        }
+        let result = await menuCollections.updateMany({}, updatedDoc, options);
+        console.log(result);
+        if (result.modifiedCount > 0) {
+          count++;
+          console.log(count);
+        }
+      } else {
+        let query = { category: offer.foodType };
+        updatedDoc = {
+          $set: {
+            offer: offer.buyAmount,
+            offerType: offer.offerType,
+          }
+        }
+        let result = await menuCollections.updateMany(query, updatedDoc, options);
+        if (result.modifiedCount > 0) {
+          count++;
+        }
+      }
+      if(count !== 0) {
+        res.json({
+          result: true,
+          message: 'Offer added successfully',
+        })
+      }else{
+        res.json({
+          result: false,
+          message: 'Something went wrong',
+        })
+      }
+    })
 
 
 
