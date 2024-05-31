@@ -224,7 +224,6 @@ async function run() {
     app.post('/add/payinfo', async (req, res) => {
       let newPayInfo = req.body;
       let result = await payInfoCollections.insertOne(newPayInfo);
-      console.log(result)
       res.json({
         result: true,
       });
@@ -421,7 +420,6 @@ async function run() {
           }
         } else if (offer.offerType === 'percentage') {
           let items = menus.filter(item => offer.foodType === item.category);
-          console.log(items);
           for (let i = 0; i < items.length; i++) {
             let id = items[i]._id;
             let query = { _id: new ObjectId(id) }
@@ -494,7 +492,6 @@ async function run() {
     app.post('/returned-request', async (req, res) => {
       let request = req.body;
       let result = await retRequestCollections.insertOne(request);
-      console.log(result)
       if (result.insertedId) {
         res.json({
           result: true,
