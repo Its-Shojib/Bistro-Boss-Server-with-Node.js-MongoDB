@@ -38,7 +38,8 @@ async function run() {
     const cartCollections = client.db("Bistro-Boss-Restaurant").collection('Carts');
     const userCollections = client.db("Bistro-Boss-Restaurant").collection('Users');
     const paymentCollections = client.db("Bistro-Boss-Restaurant").collection('Payments');
-    const offerCollections = client.db("Bistro-Boss-Restaurant").collection('Offers');
+    const payInfoCollections = client.db("Bistro-Boss-Restaurant").collection('PayInfo');
+    const retRequestCollections = client.db("Bistro-Boss-Restaurant").collection('RetRequest');
 
 
 
@@ -211,6 +212,29 @@ async function run() {
       let query = { _id: new ObjectId(id) };
       let result = await cartCollections.deleteOne(query);
       res.send(result);
+    });
+
+    app.get('/cart/item/:id', async (req, res) => {
+      let id = req.params.id;
+      let query = { _id: new ObjectId(id) };
+      let result = await menuCollections.findOne(query);
+      res.send(result);
+    });
+
+    app.post('/add/payinfo', async (req, res) =>{
+      let newPayInfo = req.body;
+      let result = await payInfoCollections.insertOne(newPayInfo);
+      console.log(result)
+      res.json({
+        result: true,
+      });
+    });
+
+    app.get('/payinfo/:email', async (req, res) =>{
+      let email = req.params.email;
+      let query = { email: email };
+      let result = await payInfoCollections.findOne(query);
+      res.send(result);
     })
 
 
@@ -247,15 +271,14 @@ async function run() {
     app.post('/payment', async (req, res) => {
       let payment = req.body;
       let paymentResult = await paymentCollections.insertOne(payment);
+      let query = { email: payment.email };
+      let deleteResult = await payInfoCollections.deleteOne(query);
 
-      let query = {
-        _id: {
-          $in: payment.cartIds.map(id => new ObjectId(id))
-        }
-      }
-      let deleteResult = await cartCollections.deleteMany(query);
-
-      res.send({ paymentResult, deleteResult });
+      res.json({
+        result: true,
+        paymentResult: paymentResult,
+        deleteResult: deleteResult
+      });
     })
 
     //Admin Stat
@@ -333,39 +356,138 @@ async function run() {
     app.put('/add-offer', async (req, res) => {
       let offer = req.body;
       let count = 0;
+      let menus = await menuCollections.find().toArray();
       let options = { upsert: true };
       if (offer.globalOffer == 'all') {
-        updatedDoc = {
-          $set: {
-            offer: offer.buyAmount,
-            offerType: offer.offerType,
+        if (offer.offerType == 'buyOffer') {
+          updatedDoc = {
+            $set: {
+              offerType: offer.offerType,
+              buyAmount: parseInt(offer.buyAmount),
+              getFreeAmount: parseInt(offer.getFreeAmount),
+              offer: 0,
+            }
+          }
+          let result = await menuCollections.updateMany({}, updatedDoc, options);
+          if (result.modifiedCount > 0) {
+            count++;
+          }
+        } else if (offer.offerType === 'percentage') {
+          for (let i = 0; i < menus.length; i++) {
+            let id = menus[i]._id;
+            let query = { _id: new ObjectId(id) }
+            let price = menus[i].price;
+            let off = price - (price * parseInt(offer.buyAmount) / 100);
+            updatedDocument = {
+              $set: {
+                offerType: offer.offerType,
+                buyAmount: parseInt(offer.buyAmount),
+                getFreeAmount: 0,
+                offer: off,
+              }
+            }
+            let result = await menuCollections.updateOne(query, updatedDocument, options);
+            if (result.modifiedCount > 0) {
+              count++;
+            }
           }
         }
-        let result = await menuCollections.updateMany({}, updatedDoc, options);
-        console.log(result);
-        if (result.modifiedCount > 0) {
-          count++;
-          console.log(count);
-        }
-      } else {
+      } else if (offer.globalOffer == 'specific') {
         let query = { category: offer.foodType };
-        updatedDoc = {
-          $set: {
-            offer: offer.buyAmount,
-            offerType: offer.offerType,
+        if (offer.offerType == 'buyOffer') {
+          updatedDoc = {
+            $set: {
+              offerType: offer.offerType,
+              buyAmount: parseInt(offer.buyAmount),
+              getFreeAmount: parseInt(offer.getFreeAmount),
+              offer: 0,
+            }
+          }
+          let result = await menuCollections.updateMany(query, updatedDoc, options);
+          if (result.modifiedCount > 0) {
+            count++;
+          }
+        } else if (offer.offerType === 'percentage') {
+          let items = menus.filter(item => offer.foodType === item.foodType);
+          for (let i = 0; i < items.length; i++) {
+            let id = items[i]._id;
+            let query = { _id: new ObjectId(id) }
+            let price = items[i].price;
+            let off = price - (price * parseInt(offer.buyAmount) / 100);
+            updatedDocument = {
+              $set: {
+                offerType: offer.offerType,
+                buyAmount: parseInt(offer.buyAmount),
+                getFreeAmount: 0,
+                offer: off,
+              }
+            }
+            let result = await menuCollections.updateOne(query, updatedDocument, options);
+            if (result.modifiedCount > 0) {
+              count++;
+            }
           }
         }
-        let result = await menuCollections.updateMany(query, updatedDoc, options);
-        if (result.modifiedCount > 0) {
-          count++;
+
+      } else if (offer.globalOffer == 'single') {
+        let id = offer.specificItem;
+        let query = { _id: new ObjectId(id) }
+        if (offer.offerType == 'buyOffer') {
+          updatedDoc = {
+            $set: {
+              offerType: offer.offerType,
+              buyAmount: parseInt(offer.buyAmount),
+              getFreeAmount: parseInt(offer.getFreeAmount),
+              offer: 0,
+            }
+          }
+          let result = await menuCollections.updateOne(query, updatedDoc, options);
+          if (result.modifiedCount > 0) {
+            count++;
+          }
+        } else if (offer.offerType === 'percentage') {
+          let id = offer.specificItem;
+          let query = { _id: new ObjectId(id) }
+          let item = await menuCollections.findOne(query)
+          let price = item.price;
+          let off = price - (price * parseInt(offer.buyAmount) / 100);
+          updatedDocument = {
+            $set: {
+              offerType: offer.offerType,
+              buyAmount: parseInt(offer.buyAmount),
+              getFreeAmount: 0,
+              offer: off,
+            }
+          }
+          let result = await menuCollections.updateOne(query, updatedDocument, options);
+          if (result.modifiedCount > 0) {
+            count++;
+          }
         }
       }
-      if(count !== 0) {
+      if (count !== 0) {
         res.json({
           result: true,
           message: 'Offer added successfully',
         })
-      }else{
+      } else {
+        res.json({
+          result: false,
+          message: 'Something went wrong',
+        })
+      }
+    });
+
+    app.post('/returned-request', async (req, res) => {
+      let request = req.body;
+      let result = await retRequestCollections.insertOne(request);
+      console.log(result)
+      if (result.insertedId) {
+        res.json({
+          result: true,
+          message: 'Request sent successfully',
+        })
+      } else {
         res.json({
           result: false,
           message: 'Something went wrong',
