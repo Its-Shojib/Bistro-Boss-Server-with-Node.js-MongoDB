@@ -221,7 +221,7 @@ async function run() {
       res.send(result);
     });
 
-    app.post('/add/payinfo', async (req, res) =>{
+    app.post('/add/payinfo', async (req, res) => {
       let newPayInfo = req.body;
       let result = await payInfoCollections.insertOne(newPayInfo);
       console.log(result)
@@ -230,7 +230,7 @@ async function run() {
       });
     });
 
-    app.get('/payinfo/:email', async (req, res) =>{
+    app.get('/payinfo/:email', async (req, res) => {
       let email = req.params.email;
       let query = { email: email };
       let result = await payInfoCollections.findOne(query);
@@ -270,15 +270,27 @@ async function run() {
     //delete item from cart collection
     app.post('/payment', async (req, res) => {
       let payment = req.body;
-      let paymentResult = await paymentCollections.insertOne(payment);
-      let query = { email: payment.email };
-      let deleteResult = await payInfoCollections.deleteOne(query);
+      let id = payment.itemId;
+      let menuQuery = { _id: new ObjectId(id) };
+      let menuItem = await menuCollections.findOne(menuQuery);
+      let product = menuItem.totalProduct;
+      let updatedDocuments = {
+        $set: {
+          totalProduct: product - (payment.quantity + payment.freeItems)
+        }
+      }
+      let menuResult = await menuCollections.updateOne(menuQuery, updatedDocuments);
+      if (menuResult.modifiedCount > 0) {
+        let paymentResult = await paymentCollections.insertOne(payment);
+        let query = { email: payment.email };
+        let deleteResult = await payInfoCollections.deleteOne(query);
+        res.json({
+          result: true,
+          paymentResult: paymentResult,
+          deleteResult: deleteResult
+        });
+      }
 
-      res.json({
-        result: true,
-        paymentResult: paymentResult,
-        deleteResult: deleteResult
-      });
     })
 
     //Admin Stat
@@ -408,7 +420,8 @@ async function run() {
             count++;
           }
         } else if (offer.offerType === 'percentage') {
-          let items = menus.filter(item => offer.foodType === item.foodType);
+          let items = menus.filter(item => offer.foodType === item.category);
+          console.log(items);
           for (let i = 0; i < items.length; i++) {
             let id = items[i]._id;
             let query = { _id: new ObjectId(id) }
@@ -493,7 +506,123 @@ async function run() {
           message: 'Something went wrong',
         })
       }
-    })
+    });
+
+    app.get('/get-return-request', async (req, res) => {
+      let result = await retRequestCollections.find().toArray();
+      res.send(result);
+    });
+
+    app.put('/returned-confirm', async (req, res) => {
+      let product = req.body;
+      let id = product.payment._id;
+      let menuQuery = { _id: new ObjectId(product.payment.itemId) };
+      let menuItem = await menuCollections.findOne(menuQuery);
+      let totalP = menuItem.totalProduct;
+      let options = { upsert: true };
+      let count = 0;
+      let query = { _id: new ObjectId(id) };
+      if (product.payment.offerType == 'percentage') {
+        let returnedPrice = (product.payment.price / product.payment.quantity) * (product.requestedAmount);
+        let returnedProduct = parseInt(product.requestedAmount);
+
+        let updatedPaymentDoc = {
+          $set: {
+            itemReturned: returnedProduct,
+            priceBack: parseFloat(returnedPrice.toFixed(2)),
+            returned: true,
+          }
+        }
+        let result = await paymentCollections.updateOne(query, updatedPaymentDoc, options);
+        let updatedMenuDoc = {
+          $set: {
+            totalProduct: totalP + returnedProduct,
+          }
+        }
+        let menuResult = await menuCollections.updateOne(menuQuery, updatedMenuDoc);
+        if (result.modifiedCount > 0 && menuResult.modifiedCount > 0) {
+          count++;
+        }
+        let Retquery = { _id: new ObjectId(product._id) };
+        let updatedReturnedDoc = {
+          $set: {
+            itemReturned: returnedProduct,
+            priceBack: parseFloat(returnedPrice.toFixed(2)),
+            returned: true,
+          }
+        }
+        let result2 = await retRequestCollections.updateOne(Retquery, updatedReturnedDoc, options);
+        if (result2.modifiedCount > 0) {
+          count++;
+        }
+        if (count == 2) {
+          res.json({
+            result: true,
+            message: 'Request confirmed',
+          })
+        } else {
+          res.json({
+            result: false,
+            message: 'Something went wrong',
+          })
+        }
+      } else {
+        let returnedPrice = (product.payment.price / product.payment.quantity) * (product.requestedAmount);
+
+        let freeItemReturn = product.payment.freeItems - Math.floor((product.payment.quantity - product.requestedAmount) / product.payment.buyAmount) * product.payment.getFreeAmount;
+        let returnedProduct = parseInt(product.requestedAmount + freeItemReturn);
+
+        let updatedPaymentDoc = {
+          $set: {
+            itemReturned: returnedProduct,
+            priceBack: parseFloat(returnedPrice.toFixed(2)),
+            returned: true,
+          }
+        }
+        let result = await paymentCollections.updateOne(query, updatedPaymentDoc, options);
+        let updatedMenuDoc = {
+          $set: {
+            totalProduct: totalP + returnedProduct,
+          }
+        }
+        let menuResult = await menuCollections.updateOne(menuQuery, updatedMenuDoc);
+        if (result.modifiedCount > 0 || menuResult.modifiedCount > 0) {
+          count++;
+        }
+        let Retquery = { _id: new ObjectId(product._id) };
+        let updatedReturnedDoc = {
+          $set: {
+            itemReturned: returnedProduct,
+            priceBack: parseFloat(returnedPrice.toFixed(2)),
+            returned: true,
+          }
+        }
+        let result2 = await retRequestCollections.updateOne(Retquery, updatedReturnedDoc, options);
+        if (result2.modifiedCount > 0) {
+          count++;
+        }
+        if (count == 2) {
+          res.json({
+            result: true,
+            message: 'Request confirmed',
+          })
+        } else {
+          res.json({
+            result: false,
+            message: 'Something went wrong',
+          })
+        }
+      }
+    });
+
+    app.get('/product-status', async (req, res) => {
+      let payment = await paymentCollections.find().toArray();
+      let returned = await retRequestCollections.find({ returned: true }).toArray();
+      res.json({
+        payment: payment,
+        returned: returned,
+      })
+    });
 
 
 
