@@ -567,6 +567,7 @@ async function run() {
         let returnedPrice = (product.payment.price / product.payment.quantity) * (product.requestedAmount);
 
         let freeItemReturn = product.payment.freeItems - Math.floor((product.payment.quantity - product.requestedAmount) / product.payment.buyAmount) * product.payment.getFreeAmount;
+        
         let returnedProduct = parseInt(product.requestedAmount + freeItemReturn);
 
         let updatedPaymentDoc = {
